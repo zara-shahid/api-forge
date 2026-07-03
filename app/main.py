@@ -12,7 +12,7 @@ from app.chains.schema_chain import generate_entities
 from app.chains.seed_chain import generate_seed_data
 from app.chains.route_chain import build_default_crud_routes
 from app.models.schemas import GeneratedAPI
-from app.serving.router import router as dynamic_router
+from app.serving.docs_mount import build_docs_subapp
 from app.serving.store import save_generated_api
 from app.utils.ids import new_api_id
 
@@ -26,8 +26,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(dynamic_router)
-
 
 @app.get("/health")
 async def health():
@@ -38,14 +36,11 @@ async def health():
 async def generate(prompt: str):
     """
     End-to-end pipeline: prompt -> entities -> routes -> seed data
-    -> stored + ready to serve at /api/{api_id}/...
-
-    TODO (Day 6): wrap this in try/except per chain step, and add the
-    retry-once logic mentioned in schema_chain.py so a single malformed
-    generation doesn't 500 mid-demo.
+    -> stored -> mounted as a real sub-app with its own live Swagger
+    docs at /api/{api_id}/docs.
     """
     entities = generate_entities(prompt)
-    routes = build_default_crud_routes(entities)  # swap for route_chain.generate_routes() once tuned
+    routes = build_default_crud_routes(entities)
     seed_data = generate_seed_data(entities)
 
     api_id = new_api_id()
@@ -56,6 +51,10 @@ async def generate(prompt: str):
         routes=routes,
     )
     save_generated_api(generated, seed_data)
+
+    # Mount this API's own real routes + docs at /api/{api_id}
+    sub_app = build_docs_subapp(generated)
+    app.mount(f"/api/{api_id}", sub_app)
 
     return {
         "api_id": api_id,
