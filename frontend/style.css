@@ -1,0 +1,11 @@
+/*
+  TODO: replace with the full Forge & Blueprint design system —
+  palette, typography, rivet panel, assembly line animation, etc.
+  (see Section 9 of the implementation guide for the token values).
+*/
+
+body {
+  background: #14161a;
+  color: #ece9e4;
+  font-family: sans-serif;
+}
