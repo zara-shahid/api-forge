@@ -12,6 +12,7 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.models.schemas import EntitySpec, RouteListWrapper
+from app.utils.retry import call_with_retry
 
 load_dotenv()
 
@@ -19,6 +20,8 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.2,
     api_key=os.environ.get("GROQ_API_KEY"),
+    timeout=20,
+    max_retries=0,
 )
 
 structured_llm = llm.with_structured_output(RouteListWrapper)
@@ -46,8 +49,18 @@ def generate_routes(entities: list[EntitySpec]):
     its keep for the "special route" cases (see Section 7 of the guide).
     """
     entities_text = "\n".join(e.model_dump_json() for e in entities)
-    result = route_chain.invoke({"entities": entities_text})
-    return result.routes
+
+    def _invoke():
+        result = route_chain.invoke({"entities": entities_text})
+        return result.routes
+
+    return call_with_retry(
+        _invoke,
+        attempts=2,
+        on_retry=lambda attempt, exc: print(
+            f"  route generation attempt {attempt + 1} failed ({exc!r}), retrying..."
+        ),
+    )
 
 
 def build_default_crud_routes(entities: list[EntitySpec]):

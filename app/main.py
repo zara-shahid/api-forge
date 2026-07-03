@@ -5,7 +5,7 @@ Run with:
     uvicorn app.main:app --reload
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.chains.schema_chain import generate_entities
@@ -39,9 +39,27 @@ async def generate(prompt: str):
     -> stored -> mounted as a real sub-app with its own live Swagger
     docs at /api/{api_id}/docs.
     """
-    entities = generate_entities(prompt)
+    # Each stage already retries once internally (see call_with_retry in
+    # the chain modules). If it still fails after that, surface a clean
+    # 503 instead of letting a raw exception 500 out mid-demo.
+    try:
+        entities = generate_entities(prompt)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Couldn't generate a schema for that prompt, please try again. ({exc})",
+        )
+
+    # Deterministic — no LLM call, so nothing to retry or fail here.
     routes = build_default_crud_routes(entities)
-    seed_data = generate_seed_data(entities)
+
+    try:
+        seed_data = generate_seed_data(entities)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Schema generated but seed data failed, please try again. ({exc})",
+        )
 
     api_id = new_api_id()
     generated = GeneratedAPI(

@@ -12,6 +12,7 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 
 from app.models.schemas import EntityListWrapper
+from app.utils.retry import call_with_retry
 
 load_dotenv()
 
@@ -19,6 +20,8 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.2,
     api_key=os.environ.get("GROQ_API_KEY"),
+    timeout=20,       # Day 8: don't let a stalled call hang the demo
+    max_retries=0,    # we do our own retry below, so failures surface immediately
 )
 
 structured_llm = llm.with_structured_output(EntityListWrapper)
@@ -43,12 +46,21 @@ schema_chain = schema_prompt | structured_llm
 def generate_entities(prompt: str):
     """Run the schema chain and return a list of EntitySpec objects.
 
-    TODO (Day 8 hardening): wrap this in a retry — if structured output
-    fails validation, retry once before raising, so a single flaky
-    generation doesn't kill a live demo.
+    Retries once on failure (malformed structured output, timeout, or
+    a transient Groq error) before raising, so a single flaky call
+    doesn't kill a live demo.
     """
-    result = schema_chain.invoke({"prompt": prompt})
-    return result.entities
+    def _invoke():
+        result = schema_chain.invoke({"prompt": prompt})
+        return result.entities
+
+    return call_with_retry(
+        _invoke,
+        attempts=2,
+        on_retry=lambda attempt, exc: print(
+            f"  schema generation attempt {attempt + 1} failed ({exc!r}), retrying..."
+        ),
+    )
 
 
 if __name__ == "__main__":
