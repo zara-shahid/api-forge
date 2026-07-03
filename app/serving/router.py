@@ -11,7 +11,7 @@ debug live on stage.
 from fastapi import APIRouter, HTTPException, Request
 
 from app.models.schemas import RouteSpec
-from app.serving.store import get_generated_api, get_records, STORE
+from app.serving.store import get_generated_api, get_records
 
 router = APIRouter()
 
@@ -48,7 +48,20 @@ def match_route(routes: list[RouteSpec], path: str, method: str) -> tuple[RouteS
     return None
 
 
-def execute(route: RouteSpec, api_id: str, path_params: dict, request: Request):
+def _next_id(records: list[dict]) -> int:
+    """Generate the next integer id for a new record.
+
+    Takes the highest existing id and adds 1, rather than just using
+    len(records)+1 — that way ids stay unique even after deletes leave
+    gaps (e.g. delete id 3 out of 5, then create: len()+1 would collide
+    with an id that still exists).
+    """
+    existing_ids = [r.get("id", 0) for r in records if isinstance(r.get("id"), int)]
+    return (max(existing_ids) + 1) if existing_ids else 1
+
+
+async def execute(route: RouteSpec, api_id: str, path_params: dict, request: Request):
+    """Perform the CRUD behavior implied by the matched route."""
     records = get_records(api_id, route.entity)
 
     if route.behavior == "list":
@@ -62,10 +75,35 @@ def execute(route: RouteSpec, api_id: str, path_params: dict, request: Request):
         raise HTTPException(404, f"{route.entity} with id {record_id} not found")
 
     if route.behavior == "create":
-        raise NotImplementedError("create needs the request body — wired in next step")
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Request body must be valid JSON")
+
+        if not isinstance(body, dict):
+            raise HTTPException(400, "Request body must be a JSON object")
+
+        new_record = dict(body)
+        new_record["id"] = _next_id(records)
+        records.append(new_record)
+        return new_record
 
     if route.behavior == "update":
-        raise NotImplementedError("update needs the request body — wired in next step")
+        record_id = path_params.get("id")
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Request body must be valid JSON")
+
+        if not isinstance(body, dict):
+            raise HTTPException(400, "Request body must be a JSON object")
+
+        for r in records:
+            if str(r.get("id")) == str(record_id):
+                r.update(body)
+                r["id"] = r.get("id")  # never let the body overwrite the id
+                return r
+        raise HTTPException(404, f"{route.entity} with id {record_id} not found")
 
     if route.behavior == "delete":
         record_id = path_params.get("id")
@@ -89,4 +127,4 @@ async def dynamic_handler(api_id: str, path: str, request: Request):
         raise HTTPException(404, f"No matching route for {request.method} /{path}")
 
     route, path_params = match
-    return execute(route, api_id, path_params, request)
+    return await execute(route, api_id, path_params, request)
