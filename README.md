@@ -1,4 +1,3 @@
-```markdown
 # API-Forge
 
 Turn a single sentence into a fully documented, queryable REST API.
@@ -123,5 +122,3 @@ tests/                  Pytest scaffolding
 
 - Data is in-memory only. Restarting the server clears every generated API. This is intentional, it keeps the demo dependency-free and instantly resettable.
 - Route generation defaults to standard CRUD per entity rather than calling the LLM for route design, this is a deliberate reliability choice, not a missing feature.
-
-```
