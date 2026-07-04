@@ -1,98 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>API-FORGE</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
-  rel="stylesheet"
-/>
-<link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API-Forge</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="ember-seam" aria-hidden="true"></div>
+  <div class="seam"></div>
 
-  <main class="page">
-    <header class="brand">
-      <h1 class="brand__title">API&#8209;FORGE</h1>
-      <p class="brand__tagline">Describe a backend. Get a running, documented API.</p>
+  <div class="wrap">
+    <header class="top">
+      <h1>API<span>-</span>FORGE</h1>
+      <p>// prompt-to-full-stack mock api engine</p>
     </header>
 
-    <section class="forge-panel" id="forgePanel">
-      <div class="rivet rivet--tl" aria-hidden="true"></div>
-      <div class="rivet rivet--tr" aria-hidden="true"></div>
-      <div class="rivet rivet--bl" aria-hidden="true"></div>
-      <div class="rivet rivet--br" aria-hidden="true"></div>
+    <!-- SCREEN 1: prompt -->
+    <section id="screenPrompt">
+      <div class="rivet-panel">
+        <span class="rivet tl"></span><span class="rivet tr"></span>
+        <span class="rivet bl"></span><span class="rivet br"></span>
 
-      <!-- Prompt entry state -->
-      <div class="forge-panel__body" id="promptView">
-        <label class="field-label" for="promptInput">Describe a backend in plain English</label>
-        <textarea
-          id="promptInput"
-          class="prompt-input"
-          rows="3"
-          placeholder="A standard e-commerce system with products, users, a cart, and checkout"
-        ></textarea>
-
-        <div class="chip-row" id="chipRow" aria-label="Example prompts">
-          <button class="chip" type="button" data-prompt="A standard e-commerce backend with products, users, a shopping cart, and a stripe checkout simulation">E-commerce</button>
-          <button class="chip" type="button" data-prompt="A blog platform with posts, authors, and comments">Blog</button>
-          <button class="chip" type="button" data-prompt="A hotel booking system with rooms, guests, and reservations">Booking</button>
-          <button class="chip" type="button" data-prompt="A social feed with users, posts, and likes">Social feed</button>
+        <div id="inputMode">
+          <div class="prompt-row">
+            <textarea id="promptInput" placeholder="Describe a backend in plain English... e.g. a standard e-commerce system with products, users, a cart, and checkout"></textarea>
+            <button class="forge-btn" id="forgeBtn">FORGE →</button>
+          </div>
+          <div class="chips">
+            <button class="chip" data-preset="ecommerce">e-commerce</button>
+            <button class="chip" data-preset="blog">blog</button>
+            <button class="chip" data-preset="booking">booking</button>
+            <button class="chip" data-preset="social">social feed</button>
+          </div>
+          <div id="errorBox" class="error-box" style="display:none;"></div>
         </div>
 
-        <button class="forge-btn" id="forgeBtn" type="button">
-          <span>Forge API</span>
-        </button>
-        <p class="hint" id="promptHint"></p>
-      </div>
-
-      <!-- Assembly line / generating state -->
-      <div class="forge-panel__body forge-panel__body--hidden" id="progressView">
-        <p class="field-label">Forging<span class="dots-anim" aria-hidden="true"></span></p>
-        <ol class="assembly-line" id="assemblyLine">
-          <li class="stage" data-stage="parse">
-            <span class="stage__dot">1</span>
-            <span class="stage__label">Parse prompt</span>
-          </li>
-          <li class="stage" data-stage="schema">
-            <span class="stage__dot">2</span>
-            <span class="stage__label">Generate schema</span>
-          </li>
-          <li class="stage" data-stage="seed">
-            <span class="stage__dot">3</span>
-            <span class="stage__label">Seed data</span>
-          </li>
-          <li class="stage" data-stage="mount">
-            <span class="stage__dot">4</span>
-            <span class="stage__label">Mount routes</span>
-          </li>
-        </ol>
-      </div>
-
-      <!-- Result state -->
-      <div class="forge-panel__body forge-panel__body--hidden" id="resultView">
-        <p class="field-label">Generated</p>
-        <div class="stat-row" id="statRow"></div>
-        <div class="result-actions">
-          <a class="forge-btn forge-btn--link" id="openDocsBtn" href="#" target="_blank" rel="noopener">
-            <span>Open Live API Docs</span>
-          </a>
-          <button class="ghost-btn" id="forgeAnotherBtn" type="button">Forge another</button>
+        <div class="assembly" id="assembly">
+          <div class="assembly-track">
+            <div class="assembly-line"></div>
+            <div class="assembly-line-fill" id="assemblyFill"></div>
+            <div class="stage" data-stage="1"><div class="stage-dot">1</div><div class="stage-label">Parse prompt</div></div>
+            <div class="stage" data-stage="2"><div class="stage-dot">2</div><div class="stage-label">Generate schema</div></div>
+            <div class="stage" data-stage="3"><div class="stage-dot">3</div><div class="stage-label">Seed data</div></div>
+            <div class="stage" data-stage="4"><div class="stage-dot">4</div><div class="stage-label">Mount routes</div></div>
+          </div>
         </div>
-      </div>
-
-      <!-- Error state -->
-      <div class="forge-panel__body forge-panel__body--hidden" id="errorView">
-        <p class="field-label field-label--error">Generation failed</p>
-        <p class="error-message" id="errorMessage"></p>
-        <button class="forge-btn" id="retryBtn" type="button"><span>Try again</span></button>
       </div>
     </section>
-  </main>
+
+    <!-- SCREEN 2: result -->
+    <section id="screenResult" class="result">
+      <div class="docs-url">docs mounted at <span id="docsUrlText"></span></div>
+
+      <div class="stat-row">
+        <div class="stat-plate"><div class="num" id="statEntities">0</div><div class="lbl">Entities</div></div>
+        <div class="stat-plate"><div class="num" id="statRoutes">0</div><div class="lbl">Routes</div></div>
+        <div class="stat-plate"><div class="num" id="statRecords">0</div><div class="lbl">Seed records</div></div>
+        <div class="stat-plate"><div class="num" id="statTime">0.0s</div><div class="lbl">Gen time</div></div>
+      </div>
+
+      <div class="actions-row">
+        <button class="ghost-btn" id="copyBtn">Copy base URL</button>
+        <a class="ghost-btn ghost-link" id="openDocsBtn" target="_blank" rel="noopener">Open Swagger docs</a>
+        <button class="ghost-btn" id="regenBtn">Regenerate</button>
+      </div>
+
+      <h2 class="section-title">Detected schema</h2>
+      <div class="entity-grid" id="entityGrid"></div>
+
+      <p class="swagger-hint">Click "Open Swagger docs" above to try live endpoints, list, create, update, and delete real seeded records.</p>
+    </section>
+
+    <footer class="credit">built for next byte hacks v3</footer>
+  </div>
 
   <script src="app.js"></script>
 </body>

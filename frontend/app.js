@@ -1,166 +1,189 @@
 const BASE_URL = "http://127.0.0.1:8000";
 
-// ---- Element refs ----
-const promptView = document.getElementById("promptView");
-const progressView = document.getElementById("progressView");
-const resultView = document.getElementById("resultView");
-const errorView = document.getElementById("errorView");
+const presets = {
+  ecommerce: "A standard e-commerce backend with products, users, a shopping cart, and a stripe checkout simulation",
+  blog: "A blog platform with posts, authors, and comments",
+  booking: "A hotel booking system with rooms, guests, and reservations",
+  social: "A social feed with users, posts, and likes",
+};
 
 const promptInput = document.getElementById("promptInput");
-const promptHint = document.getElementById("promptHint");
 const forgeBtn = document.getElementById("forgeBtn");
-const chipRow = document.getElementById("chipRow");
+const inputMode = document.getElementById("inputMode");
+const assembly = document.getElementById("assembly");
+const assemblyFill = document.getElementById("assemblyFill");
+const stages = document.querySelectorAll(".stage");
+const screenPrompt = document.getElementById("screenPrompt");
+const screenResult = document.getElementById("screenResult");
+const entityGrid = document.getElementById("entityGrid");
+const errorBox = document.getElementById("errorBox");
 
-const statRow = document.getElementById("statRow");
-const openDocsBtn = document.getElementById("openDocsBtn");
-const forgeAnotherBtn = document.getElementById("forgeAnotherBtn");
-
-const errorMessage = document.getElementById("errorMessage");
-const retryBtn = document.getElementById("retryBtn");
-
-const stageEls = Array.from(document.querySelectorAll(".stage"));
-
-// ---- View switching ----
-function showView(view) {
-  [promptView, progressView, resultView, errorView].forEach((v) => {
-    v.classList.toggle("forge-panel__body--hidden", v !== view);
+document.querySelectorAll(".chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    promptInput.value = presets[chip.dataset.preset];
+    promptInput.focus();
   });
-}
-
-// ---- Example chips ----
-chipRow.addEventListener("click", (e) => {
-  const chip = e.target.closest(".chip");
-  if (!chip) return;
-  promptInput.value = chip.dataset.prompt;
-  promptInput.focus();
 });
 
-// ---- Assembly line animation ----
-// The real backend does this as ONE /generate call, but the guide's
-// UI design calls for a visible 4-stage pipeline rather than a bare
-// spinner. We advance stages 1-3 on a timer while the real fetch is
-// in flight, then snap straight to "complete" the moment the real
-// response comes back -- so the trail always finishes in sync with
-// reality, it just doesn't sit idle while waiting.
-let stageTimer = null;
-
-function resetStages() {
-  stageEls.forEach((el) => el.classList.remove("is-active", "is-complete"));
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.style.display = "block";
 }
 
-function setStage(index, state) {
-  const el = stageEls[index];
-  if (!el) return;
-  el.classList.remove("is-active", "is-complete");
-  el.classList.add(state);
+function clearError() {
+  errorBox.style.display = "none";
+  errorBox.textContent = "";
 }
 
-function advanceStagesWhileWaiting() {
-  resetStages();
-  let current = 0;
-  setStage(0, "is-active");
+function runAssemblyAnimation() {
+  return new Promise((resolve) => {
+    assembly.classList.add("active");
+    stages.forEach((s) => s.classList.remove("active", "done"));
+    assemblyFill.style.width = "0%";
 
-  stageTimer = setInterval(() => {
-    setStage(current, "is-complete");
-    current += 1;
-    // Stop advancing automatically at "Seed data" (index 2) -- "Mount
-    // routes" only completes once we actually have a response, since
-    // mounting is the literal last thing /generate does server-side.
-    if (current <= 2) {
-      setStage(current, "is-active");
-    } else {
-      clearInterval(stageTimer);
-    }
-  }, 900);
-}
+    const stageDurations = [400, 500, 500, 400];
+    let elapsed = 0;
+    stages.forEach((stageEl, i) => {
+      setTimeout(() => {
+        stages.forEach((s) => s.classList.remove("active"));
+        stageEl.classList.add("active");
+        assemblyFill.style.width = ((i + 0.5) / 4) * 100 + "%";
+      }, elapsed);
+      elapsed += stageDurations[i];
+      setTimeout(() => {
+        stageEl.classList.remove("active");
+        stageEl.classList.add("done");
+        assemblyFill.style.width = ((i + 1) / 4) * 100 + "%";
+      }, elapsed);
+    });
 
-function completeAllStages() {
-  if (stageTimer) clearInterval(stageTimer);
-  stageEls.forEach((el) => {
-    el.classList.remove("is-active");
-    el.classList.add("is-complete");
+    setTimeout(resolve, elapsed + 200);
   });
 }
 
-// ---- Forge flow ----
 async function forge() {
   const prompt = promptInput.value.trim();
   if (!prompt) {
-    promptHint.textContent = "Describe a backend first — try one of the examples below.";
+    promptInput.focus();
     return;
   }
-  promptHint.textContent = "";
 
-  showView(progressView);
-  advanceStagesWhileWaiting();
+  clearError();
+  forgeBtn.disabled = true;
+  inputMode.style.display = "none";
+
+  const startTime = performance.now();
+  const animationPromise = runAssemblyAnimation();
 
   try {
     const res = await fetch(
-      `${BASE_URL}/generate?${new URLSearchParams({ prompt })}`,
+      `${BASE_URL}/generate?prompt=${encodeURIComponent(prompt)}`,
       { method: "POST" }
     );
 
-    const data = await res.json().catch(() => null);
+    const data = await res.json();
 
     if (!res.ok) {
-      const detail = (data && data.detail) || `Server responded ${res.status}`;
-      throw new Error(detail);
+      throw new Error(data.detail || `Server responded ${res.status}`);
     }
 
-    completeAllStages();
-    // Brief pause so the last stage's fill is actually visible before
-    // switching views -- otherwise "Mount routes" completes and
-    // disappears in the same frame.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    renderResult(data);
-    showView(resultView);
+    await animationPromise;
+    const genTime = ((performance.now() - startTime) / 1000).toFixed(1);
+    await showResult(data, genTime);
   } catch (err) {
-    if (stageTimer) clearInterval(stageTimer);
-    errorMessage.textContent = `${err.message}. Check that the server is running and try again.`;
-    showView(errorView);
+    await animationPromise;
+    assembly.classList.remove("active");
+    inputMode.style.display = "block";
+    forgeBtn.disabled = false;
+    showError(`Generation failed: ${err.message}. Try again, this is sometimes a transient issue.`);
   }
 }
 
-function renderResult(data) {
-  statRow.innerHTML = "";
-  const stats = [
-    { value: data.entity_count, label: "Entities" },
-    { value: data.route_count, label: "Routes" },
-    { value: data.api_id, label: "API ID" },
-  ];
+async function showResult(data, genTime) {
+  document.getElementById("docsUrlText").textContent = data.docs_url;
+  document.getElementById("statEntities").textContent = data.entity_count;
+  document.getElementById("statRoutes").textContent = data.route_count;
+  document.getElementById("statTime").textContent = genTime + "s";
 
-  stats.forEach((stat) => {
-    const plate = document.createElement("div");
-    plate.className = "stat-plate";
-    plate.innerHTML = `
-      <span class="stat-plate__value">${stat.value}</span>
-      <span class="stat-plate__label">${stat.label}</span>
-    `;
-    statRow.appendChild(plate);
-  });
+  const openDocsBtn = document.getElementById("openDocsBtn");
+  openDocsBtn.href = BASE_URL + data.docs_url;
 
-  openDocsBtn.href = `${BASE_URL}${data.docs_url}`;
+  const copyBtn = document.getElementById("copyBtn");
+  copyBtn.dataset.baseUrl = BASE_URL + data.docs_url.replace("/docs", "");
+
+  // Fetch the OpenAPI schema from the freshly mounted sub-app so we can
+  // show the real detected entities/fields, and get an accurate seed
+  // record count, rather than guessing.
+  let recordCount = 0;
+  entityGrid.innerHTML = "";
+  try {
+    const schemaRes = await fetch(BASE_URL + data.docs_url.replace("/docs", "/openapi.json"));
+    const schema = await schemaRes.json();
+    const paths = schema.paths || {};
+
+    const entityNames = new Set();
+    Object.values(paths).forEach((methods) => {
+      Object.values(methods).forEach((op) => {
+        if (op.summary && op.summary.toLowerCase().startsWith("list")) {
+          entityNames.add(op.summary.replace(/list /i, "").trim());
+        }
+      });
+    });
+
+    for (const name of entityNames) {
+      const listPath = Object.keys(paths).find((p) =>
+        Object.values(paths[p]).some(
+          (op) => op.summary && op.summary.toLowerCase() === `list ${name}`
+        )
+      );
+      if (!listPath) continue;
+
+      try {
+        const recordsRes = await fetch(BASE_URL + data.docs_url.replace("/docs", "") + listPath);
+        const records = await recordsRes.json();
+        recordCount += Array.isArray(records) ? records.length : 0;
+
+        const fields = Array.isArray(records) && records[0] ? Object.keys(records[0]) : [];
+        const card = document.createElement("div");
+        card.className = "entity-card";
+        card.innerHTML = `<div class="entity-name">${name}</div>` +
+          fields.map((f) => `<div class="field"><span>${f}</span></div>`).join("");
+        entityGrid.appendChild(card);
+      } catch (e) {
+        // skip entity if its list endpoint fails, non-fatal
+      }
+    }
+  } catch (e) {
+    // schema introspection failed — not fatal, just skip the entity cards
+  }
+
+  document.getElementById("statRecords").textContent = recordCount;
+
+  screenPrompt.style.display = "none";
+  screenResult.classList.add("active");
 }
 
-// ---- Wiring ----
 forgeBtn.addEventListener("click", forge);
-
 promptInput.addEventListener("keydown", (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-    forge();
-  }
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) forge();
 });
 
-forgeAnotherBtn.addEventListener("click", () => {
+document.getElementById("regenBtn").addEventListener("click", () => {
+  screenResult.classList.remove("active");
+  screenPrompt.style.display = "block";
+  document.getElementById("inputMode").style.display = "block";
+  assembly.classList.remove("active");
+  forgeBtn.disabled = false;
   promptInput.value = "";
-  resetStages();
-  showView(promptView);
+  clearError();
   promptInput.focus();
 });
 
-retryBtn.addEventListener("click", () => {
-  resetStages();
-  showView(promptView);
-  promptInput.focus();
+document.getElementById("copyBtn").addEventListener("click", (e) => {
+  const btn = e.currentTarget;
+  const url = btn.dataset.baseUrl || "";
+  navigator.clipboard.writeText(url).catch(() => {});
+  const original = btn.textContent;
+  btn.textContent = "Copied";
+  setTimeout(() => { btn.textContent = original; }, 1200);
 });
