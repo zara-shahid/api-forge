@@ -5,6 +5,8 @@ Run with:
     uvicorn app.main:app --reload
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,10 +15,25 @@ from app.chains.seed_chain import generate_seed_data
 from app.chains.route_chain import build_default_crud_routes
 from app.models.schemas import GeneratedAPI
 from app.serving.docs_mount import build_docs_subapp
-from app.serving.store import save_generated_api
+from app.serving.store import (
+    bootstrap_store,
+    get_generated_api,
+    list_generated_apis,
+    save_generated_api,
+)
 from app.utils.ids import new_api_id
 
-app = FastAPI(title="API-Forge")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    bootstrap_store()
+    for generated in list_generated_apis():
+        sub_app = build_docs_subapp(generated)
+        app.mount(f"/api/{generated.api_id}", sub_app)
+    yield
+
+
+app = FastAPI(title="API-Forge", lifespan=lifespan)
 
 # Loosen CORS for local hackathon dev — tighten before any public deploy.
 app.add_middleware(
@@ -79,4 +96,38 @@ async def generate(prompt: str):
         "docs_url": f"/api/{api_id}/docs",
         "entity_count": len(entities),
         "route_count": len(routes),
+        "entities": [e.model_dump() for e in entities],
+        "prompt": prompt,
+    }
+
+
+@app.get("/apis")
+async def list_apis():
+    """List every API forged and stored in SQLite."""
+    return [
+        {
+            "api_id": g.api_id,
+            "title": g.title,
+            "entity_count": len(g.entities),
+            "route_count": len(g.routes),
+            "docs_url": f"/api/{g.api_id}/docs",
+        }
+        for g in list_generated_apis()
+    ]
+
+
+@app.get("/apis/{api_id}")
+async def get_api(api_id: str):
+    """Fetch metadata for a previously forged API (for history reload)."""
+    generated = get_generated_api(api_id)
+    if not generated:
+        raise HTTPException(status_code=404, detail=f"API {api_id} not found")
+    return {
+        "api_id": generated.api_id,
+        "title": generated.title,
+        "docs_url": f"/api/{generated.api_id}/docs",
+        "entity_count": len(generated.entities),
+        "route_count": len(generated.routes),
+        "entities": [e.model_dump() for e in generated.entities],
+        "prompt": generated.title,
     }

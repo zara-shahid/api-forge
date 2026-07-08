@@ -4,38 +4,110 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>API-Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="ambient">
+    <div class="forge-3d-vignette"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
   <div class="seam"></div>
 
   <div class="wrap">
-    <header class="top">
-      <h1>API<span>-</span>FORGE</h1>
-      <p>// prompt-to-full-stack mock api engine</p>
-    </header>
+    <button class="history-toggle" id="historyToggle" title="Session history">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="history-count" id="historyCount">0</span>
+    </button>
+
+    <aside class="history-drawer" id="historyDrawer">
+      <div class="history-header">
+        <h3>Session history</h3>
+        <button class="history-close" id="historyClose">×</button>
+      </div>
+      <p class="history-sub">All forged APIs — persisted in SQLite, click to reload</p>
+      <div class="history-list" id="historyList"></div>
+    </aside>
+    <div class="history-backdrop" id="historyBackdrop"></div>
 
     <!-- SCREEN 1: prompt -->
     <section id="screenPrompt">
-      <div class="rivet-panel">
+      <div class="hero-split">
+        <div class="hero-left">
+          <header class="top hero-copy">
+            <div class="hero-brand-row">
+              <div class="brand-mark">
+                <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                  <path d="M6 16L16 6L26 16L16 26L6 16Z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M16 6V26M6 16H26" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+                  <circle cx="16" cy="16" r="3" fill="currentColor"/>
+                </svg>
+              </div>
+              <div class="badge">Prompt → Live API</div>
+            </div>
+
+            <h1 class="hero-title">
+              <span class="title-line">API</span>
+              <span class="title-accent">FORGE</span>
+            </h1>
+
+            <p class="hero-subtitle anim-fade" style="--delay: 0.35s">
+              Turn <em>one sentence</em> into a fully documented,
+              queryable <em>REST API</em> — in seconds.
+            </p>
+
+            <ul class="hero-highlights anim-fade" style="--delay: 0.5s">
+              <li><span class="hl-dot"></span>Auto-generated Swagger docs</li>
+              <li><span class="hl-dot"></span>Real seeded CRUD endpoints</li>
+              <li><span class="hl-dot"></span>Zero backend setup required</li>
+            </ul>
+
+            <div class="feature-pills anim-fade" style="--delay: 0.65s">
+              <span class="pill">LangChain</span>
+              <span class="pill">Playground</span>
+              <span class="pill">ER diagram</span>
+              <span class="pill">OpenAPI</span>
+            </div>
+          </header>
+
+          <div class="rivet-panel glass prompt-panel">
         <span class="rivet tl"></span><span class="rivet tr"></span>
         <span class="rivet bl"></span><span class="rivet br"></span>
+        <div class="panel-glow"></div>
 
         <div id="inputMode">
+          <label class="input-label" for="promptInput">Describe your backend</label>
           <div class="prompt-row">
-            <textarea id="promptInput" placeholder="Describe a backend in plain English... e.g. a standard e-commerce system with products, users, a cart, and checkout"></textarea>
-            <button class="forge-btn" id="forgeBtn">FORGE →</button>
+            <div class="textarea-wrap">
+              <textarea id="promptInput" placeholder="e.g. a standard e-commerce system with products, users, a cart, and checkout"></textarea>
+              <span class="hint">Ctrl + Enter to forge</span>
+            </div>
+            <button class="forge-btn" id="forgeBtn">
+              <span class="forge-btn-text">FORGE</span>
+              <span class="forge-btn-icon">→</span>
+            </button>
           </div>
+          <div class="chips-label">Quick presets</div>
           <div class="chips">
-            <button class="chip" data-preset="ecommerce">e-commerce</button>
-            <button class="chip" data-preset="blog">blog</button>
-            <button class="chip" data-preset="booking">booking</button>
-            <button class="chip" data-preset="social">social feed</button>
+            <button class="chip" data-preset="ecommerce"><span class="chip-icon">🛒</span> e-commerce</button>
+            <button class="chip" data-preset="blog"><span class="chip-icon">✍️</span> blog</button>
+            <button class="chip" data-preset="booking"><span class="chip-icon">🏨</span> booking</button>
+            <button class="chip" data-preset="social"><span class="chip-icon">📱</span> social feed</button>
           </div>
           <div id="errorBox" class="error-box" style="display:none;"></div>
         </div>
 
         <div class="assembly" id="assembly">
+          <div class="assembly-header">
+            <span class="assembly-pulse"></span>
+            Forging your API…
+          </div>
           <div class="assembly-track">
             <div class="assembly-line"></div>
             <div class="assembly-line-fill" id="assemblyFill"></div>
@@ -45,35 +117,170 @@
             <div class="stage" data-stage="4"><div class="stage-dot">4</div><div class="stage-label">Mount routes</div></div>
           </div>
         </div>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <div id="forge3d" class="forge-3d-canvas" aria-hidden="true"></div>
+          <div class="forge-3d-label">Forging engine</div>
+        </div>
       </div>
     </section>
 
-    <!-- SCREEN 2: result -->
+    <!-- SCREEN 2: result with navbar -->
     <section id="screenResult" class="result">
-      <div class="docs-url">docs mounted at <span id="docsUrlText"></span></div>
+      <nav class="app-navbar" id="appNavbar">
+        <div class="nav-brand">
+          <span class="nav-logo">◆</span>
+          API<span>-</span>FORGE
+        </div>
+        <div class="nav-links">
+          <button class="nav-link active" data-screen="overview">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Overview
+          </button>
+          <button class="nav-link" data-screen="relationships">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.5 8.5L15.5 15.5"/></svg>
+            Relationships
+          </button>
+          <button class="nav-link" data-screen="schema">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+            Schema
+          </button>
+          <button class="nav-link" data-screen="playground">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Playground
+          </button>
+        </div>
+        <button class="nav-regen" id="regenBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          New API
+        </button>
+      </nav>
 
-      <div class="stat-row">
-        <div class="stat-plate"><div class="num" id="statEntities">0</div><div class="lbl">Entities</div></div>
-        <div class="stat-plate"><div class="num" id="statRoutes">0</div><div class="lbl">Routes</div></div>
-        <div class="stat-plate"><div class="num" id="statRecords">0</div><div class="lbl">Seed records</div></div>
-        <div class="stat-plate"><div class="num" id="statTime">0.0s</div><div class="lbl">Gen time</div></div>
+      <div class="result-screens">
+        <!-- Overview screen -->
+        <div class="result-screen active" id="screenOverview">
+          <header class="result-hero">
+            <div class="result-hero-accent"></div>
+            <div class="result-hero-content anim-fade" style="--delay: 0s">
+              <span class="result-badge">✓ API forged</span>
+              <h2 class="result-title">Your API is <span class="result-title-accent">live</span></h2>
+              <p class="result-url">Mounted at <code id="docsUrlText"></code></p>
+            </div>
+          </header>
+
+          <div class="stat-strip anim-fade" style="--delay: 0.12s">
+            <div class="stat-item">
+              <span class="num" id="statEntities">0</span>
+              <span class="lbl">Entities</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="num" id="statRoutes">0</span>
+              <span class="lbl">Routes</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="num" id="statRecords">0</span>
+              <span class="lbl">Seed records</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item highlight">
+              <span class="num" id="statTime">0.0s</span>
+              <span class="lbl">Gen time</span>
+            </div>
+          </div>
+
+          <div class="actions-toolbar anim-fade" style="--delay: 0.22s">
+            <a class="action-btn action-primary" id="openDocsBtn" target="_blank" rel="noopener">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Open Swagger docs
+            </a>
+            <button class="action-btn" id="exportBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export OpenAPI
+            </button>
+            <button class="action-btn" id="copyBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy URL
+            </button>
+          </div>
+
+          <div class="overview-hint anim-fade" style="--delay: 0.32s">
+            Use the navigation above to explore <strong>relationships</strong>, <strong>schema</strong>, and the live <strong>playground</strong>.
+          </div>
+        </div>
+
+        <!-- Relationships screen -->
+        <div class="result-screen" id="screenRelationships">
+          <div class="screen-header">
+            <h2 class="screen-title">Entity relationships</h2>
+            <p class="screen-desc">How your generated entities connect to each other.</p>
+          </div>
+          <div class="er-diagram" id="erDiagram"></div>
+        </div>
+
+        <!-- Schema screen -->
+        <div class="result-screen" id="screenSchema">
+          <div class="screen-header">
+            <h2 class="screen-title">Detected schema</h2>
+            <p class="screen-desc">Fields and types inferred for each entity.</p>
+          </div>
+          <div class="entity-grid" id="entityGrid"></div>
+        </div>
+
+        <!-- Playground screen -->
+        <div class="result-screen" id="screenPlayground">
+          <div class="screen-header">
+            <h2 class="screen-title">Live API playground</h2>
+            <p class="screen-desc">Send real requests to your forged API and inspect responses.</p>
+          </div>
+          <div class="playground">
+            <div class="playground-controls">
+              <div class="pg-field">
+                <label for="pgEntity">Entity</label>
+                <select id="pgEntity"></select>
+              </div>
+              <div class="pg-field">
+                <label for="pgOperation">Operation</label>
+                <select id="pgOperation"></select>
+              </div>
+              <div class="pg-field pg-id-field" id="pgIdField" style="display:none;">
+                <label for="pgId">Record ID</label>
+                <input type="text" id="pgId" placeholder="1">
+              </div>
+              <button class="forge-btn pg-send" id="pgSend">
+                <span class="forge-btn-text">SEND</span>
+              </button>
+            </div>
+            <div class="pg-url-bar">
+              <span class="pg-method" id="pgMethod">GET</span>
+              <code id="pgUrl">/api/…</code>
+              <button class="pg-curl" id="pgCurl" title="Copy as cURL">cURL</button>
+            </div>
+            <div class="pg-body-wrap" id="pgBodyWrap" style="display:none;">
+              <label for="pgBody">Request body (JSON)</label>
+              <textarea id="pgBody" spellcheck="false"></textarea>
+            </div>
+            <div class="pg-response" id="pgResponse">
+              <div class="pg-response-meta">
+                <span class="pg-status" id="pgStatus">—</span>
+                <span class="pg-time" id="pgTime"></span>
+              </div>
+              <pre class="pg-response-body" id="pgResponseBody">Send a request to see the live response.</pre>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div class="actions-row">
-        <button class="ghost-btn" id="copyBtn">Copy base URL</button>
-        <a class="ghost-btn ghost-link" id="openDocsBtn" target="_blank" rel="noopener">Open Swagger docs</a>
-        <button class="ghost-btn" id="regenBtn">Regenerate</button>
-      </div>
-
-      <h2 class="section-title">Detected schema</h2>
-      <div class="entity-grid" id="entityGrid"></div>
-
-      <p class="swagger-hint">Click "Open Swagger docs" above to try live endpoints, list, create, update, and delete real seeded records.</p>
     </section>
 
-    <footer class="credit">built for next byte hacks v3</footer>
   </div>
 
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="forge3d.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

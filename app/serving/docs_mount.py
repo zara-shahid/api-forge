@@ -11,7 +11,7 @@ produce meaningful per-entity documentation.
 from fastapi import FastAPI, HTTPException, Body
 
 from app.models.schemas import GeneratedAPI, RouteSpec
-from app.serving.store import get_records
+from app.serving.store import get_records, persist_records
 
 
 def _next_id(records: list[dict]) -> int:
@@ -50,6 +50,7 @@ def _make_handler(api_id: str, route: RouteSpec):
             new_record = dict(body)
             new_record["id"] = _next_id(records)
             records.append(new_record)
+            persist_records(api_id, entity)
             return new_record
         return handler
 
@@ -62,6 +63,7 @@ def _make_handler(api_id: str, route: RouteSpec):
                     original_id = r.get("id")
                     r.update(body)
                     r["id"] = original_id
+                    persist_records(api_id, entity)
                     return r
             raise HTTPException(404, f"{entity} with id {id} not found")
         return handler
@@ -72,6 +74,7 @@ def _make_handler(api_id: str, route: RouteSpec):
             for i, r in enumerate(records):
                 if str(r.get("id")) == str(id):
                     records.pop(i)
+                    persist_records(api_id, entity)
                     return {"deleted": True, "id": id}
             raise HTTPException(404, f"{entity} with id {id} not found")
         return handler

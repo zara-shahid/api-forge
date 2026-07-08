@@ -2,40 +2,83 @@
 
 Turn a single sentence into a fully documented, queryable REST API.
 
-Describe a backend in plain English, e.g. *"a standard e-commerce system with products, users, a cart, and checkout"*, and get back a live, interactive Swagger UI backed by a real running FastAPI server with realistic seed data, in seconds.
+Describe a backend in plain English — e.g. *"a blog platform with posts, authors, and comments"* — and get back a live FastAPI server with realistic seed data, interactive Swagger docs, and a full dashboard to explore it.
 
-Built for Next Byte Hacks V3.
+## Screenshots
+
+### Home — prompt & 3D forge engine
+
+![API-Forge home screen](docs/screenshots/home.png)
+
+Split hero layout with prompt input, quick presets, and an animated 3D wireframe forge on the right.
+
+### Overview — stats & actions
+
+![API overview dashboard](docs/screenshots/overview.png)
+
+After forging, a navbar appears with an overview showing entity/route/record counts, generation time, and quick actions (Swagger, OpenAPI export, copy URL).
+
+### Entity relationships
+
+![Entity relationship diagram](docs/screenshots/relationships.png)
+
+Visual map of generated entities and how they relate to each other.
+
+### Detected schema
+
+![Detected schema view](docs/screenshots/schema.png)
+
+Field-level breakdown for every entity inferred from your prompt.
+
+### Live API playground
+
+![Live API playground](docs/screenshots/playground.png)
+
+Send real HTTP requests to your forged API and inspect live JSON responses — no Swagger tab required.
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **Prompt → API** | LangChain + Groq generates schema and seed data from plain English |
+| **Real REST endpoints** | Full CRUD per entity — list, get, create, update, delete |
+| **Swagger docs** | Auto-generated OpenAPI/Swagger UI per API |
+| **Live playground** | Test endpoints inline with cURL copy |
+| **ER diagram** | Entity relationship visualization |
+| **OpenAPI export** | Download the spec as JSON |
+| **Session history** | Browse and reload previously forged APIs |
+| **SQLite persistence** | APIs and records survive server restarts |
+| **3D home screen** | Three.js forge animation on the landing page |
 
 ## Why this exists
 
-Frontend teams routinely wait on backend teams to design a schema, seed data, and deploy endpoints just to start building UI. Tools like Mockoon, Beeceptor, and MockingCloud already generate AI-powered mocks, but every one of them needs you to bring an existing OpenAPI spec or existing traffic first.
+Frontend teams routinely wait on backend teams to design a schema, seed data, and deploy endpoints just to start building UI. Tools like Mockoon, Beeceptor, and MockingCloud generate AI-powered mocks, but most need an existing OpenAPI spec or traffic first.
 
-API-Forge starts from nothing but a sentence. The generation pipeline is also fully visible and inspectable, split into three distinct LangChain steps (schema, seed data, routes) rather than one opaque prompt-to-JSON call, and it produces real FastAPI-native Swagger docs rather than a custom-built dashboard mimicking one.
+API-Forge starts from nothing but a sentence. The pipeline is split into three inspectable LangChain steps (schema, seed data, routes) rather than one opaque prompt-to-JSON call, and it produces real FastAPI-native Swagger docs — not a custom dashboard mimicking one.
 
 ## How it works
 
 ```
 Prompt UI
-   │  POST /generate { "prompt": "..." }
+   │  POST /generate?prompt=...
    ▼
-FastAPI Generation Endpoint
+FastAPI generation endpoint
    │  invokes
    ▼
-LangChain Pipeline
-   Step 1: Schema chain   → EntitySpec[] (Pydantic, structured output)
-   Step 2: Seed chain     → realistic in-memory records per entity
-   Step 3: Route builder  → RouteSpec[] (standard CRUD, no LLM call needed)
+LangChain pipeline
+   Step 1: Schema chain   → EntitySpec[] (LLM, structured output)
+   Step 2: Seed chain     → realistic records per entity (LLM)
+   Step 3: Route builder  → RouteSpec[] (deterministic CRUD)
    │  writes
    ▼
-In-memory store  { api_id: { entities, records, routes } }
+SQLite store (data/forge.db) + in-memory cache
    │
    ▼
-Per-api_id FastAPI sub-app, mounted at /api/{api_id}
-   → real routes for every entity, real auto-generated Swagger docs
-   → GET/POST/PUT/DELETE fully implemented (list, get_one, create, update, delete)
+Per-api_id FastAPI sub-app mounted at /api/{api_id}
+   → real routes, real Swagger docs, real CRUD
 ```
 
-Each generated API is a fully independent, mounted FastAPI sub-application. This means two different generated APIs can run side by side with zero risk of one interfering with the other, and each gets its own genuine, correct Swagger documentation rather than a shared generic catch-all.
+Each generated API is an independent mounted sub-application. Two APIs can run side by side without interfering with each other.
 
 ## Tech stack
 
@@ -45,8 +88,9 @@ Each generated API is a fully independent, mounted FastAPI sub-application. This
 | LLM orchestration | LangChain |
 | LLM provider | Groq (`llama-3.3-70b-versatile`) |
 | Schema validation | Pydantic v2 |
-| Data storage | In-memory (no database dependency) |
-| Frontend | Plain HTML/CSS/JS |
+| Persistence | SQLite (stdlib, `data/forge.db`) |
+| Frontend | HTML / CSS / JS + Three.js |
+| Screenshots | Playwright (dev script) |
 
 ## Setup
 
@@ -56,7 +100,7 @@ venv\Scripts\Activate.ps1        # Windows PowerShell
 # source venv/bin/activate       # macOS/Linux
 
 pip install -r requirements.txt
-cp .env.example .env             # then paste in your real GROQ_API_KEY
+cp .env.example .env             # add your GROQ_API_KEY
 ```
 
 ## Run
@@ -71,13 +115,13 @@ Server runs at `http://127.0.0.1:8000`. Confirm it's up:
 curl http://127.0.0.1:8000/health
 ```
 
-Open `frontend/index.html` in a browser to use the prompt UI, or generate directly:
+Open `frontend/index.html` in a browser, or generate via CLI:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/generate?prompt=A blog platform with posts, authors, and comments"
 ```
 
-This returns an `api_id`. Visit `http://127.0.0.1:8000/api/{api_id}/docs` for a live, interactive Swagger UI, every endpoint is real and clickable, including "Try it out" against actual seeded data.
+Visit `http://127.0.0.1:8000/api/{api_id}/docs` for live Swagger UI.
 
 ## Example prompts
 
@@ -88,37 +132,68 @@ This returns an `api_id`. Visit `http://127.0.0.1:8000/api/{api_id}/docs` for a 
 | A hotel booking system with rooms, guests, and reservations | room, guest, reservation |
 | A social feed with users, posts, and likes | user, post, like |
 
-The pipeline isn't limited to these, any plain-English backend description works.
+Any plain-English backend description works — these are just starting points.
+
+## API endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `POST` | `/generate?prompt=...` | Forge a new API |
+| `GET` | `/apis` | List all forged APIs |
+| `GET` | `/apis/{api_id}` | Get API metadata |
+| `*` | `/api/{api_id}/...` | Generated CRUD routes |
+| `GET` | `/api/{api_id}/docs` | Swagger UI |
+
+## Regenerate README screenshots
+
+Requires Playwright (not in `requirements.txt` — dev only):
+
+```bash
+pip install playwright
+python -m playwright install chromium
+python scripts/capture_screenshots.py
+```
+
+Outputs to `docs/screenshots/`.
 
 ## Reliability
 
-Groq's structured-output parsing occasionally fails on longer completions even when the underlying data is fine. Every chain call is wrapped in automatic retry logic (`app/utils/retry.py`) that retries up to 3 times before surfacing a clean error, so a single transient failure doesn't break generation.
+Groq's structured-output parsing occasionally fails on longer completions. Every chain call is wrapped in automatic retry logic (`app/utils/retry.py`) — up to 3 attempts before surfacing a clean error.
 
 ## Project structure
 
 ```
 app/
-  main.py              FastAPI app, /generate endpoint, mounts per-api_id sub-apps
-  models/schemas.py    Pydantic models shared across chains and serving layer
+  main.py              FastAPI app, /generate, lifespan remount from SQLite
+  models/schemas.py    Pydantic models for chains and serving
   chains/
-    schema_chain.py    Prompt -> entities (LLM, structured output)
-    seed_chain.py      Entities -> realistic seed records (LLM, structured output, retried)
-    route_chain.py     Entities -> standard CRUD routes (deterministic, no LLM call)
+    schema_chain.py    Prompt → entities (LLM)
+    seed_chain.py      Entities → seed records (LLM)
+    route_chain.py     Entities → CRUD routes (deterministic)
   serving/
-    docs_mount.py      Builds a real FastAPI sub-app with live routes + Swagger docs per api_id
-    store.py           In-memory storage, isolated per api_id
+    docs_mount.py      Per-api_id sub-app with live routes + Swagger
+    store.py           SQLite-backed store with in-memory cache
+    database.py        SQLite schema and connection
   utils/
-    retry.py           Shared retry wrapper for LLM calls
+    retry.py           Retry wrapper for LLM calls
     ids.py             api_id generation
 frontend/
-  index.html           Prompt screen (Screen 1) + result screen (Screen 2)
-  app.js               Calls the live backend, renders real stats/entities from the response
-  style.css            Forge & Blueprint design system
-scripts/                Manual test scripts for each pipeline stage
-tests/                  Pytest scaffolding
+  index.html           Home screen + navbar dashboard
+  app.js               Forge flow, navbar, playground, history
+  style.css            UI styles
+  forge3d.js           Three.js background animation
+docs/
+  screenshots/         README screenshots
+scripts/
+  capture_screenshots.py
+data/
+  forge.db             SQLite database (created at runtime, gitignored)
 ```
 
 ## Known limitations
 
-- Data is in-memory only. Restarting the server clears every generated API. This is intentional, it keeps the demo dependency-free and instantly resettable.
-- Route generation defaults to standard CRUD per entity rather than calling the LLM for route design, this is a deliberate reliability choice, not a missing feature.
+- Routes are standard CRUD per entity (deterministic, not LLM-designed) — a deliberate reliability choice.
+- The forging progress animation is cosmetic UI; it does not reflect real-time backend pipeline stages.
+- The 3D background is decorative only.
+- SQLite is local single-file storage — not suited for multi-user production without further work.
