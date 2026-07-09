@@ -2,17 +2,21 @@
 
 Turn a single sentence into a fully documented, queryable REST API.
 
-Describe a backend in plain English — e.g. *"a blog platform with posts, authors, and comments"* — and get back a live FastAPI server with realistic seed data, interactive Swagger docs, and a full dashboard to explore it.
+Describe a backend in plain English, e.g. *"a blog platform with posts, authors, and comments"*, and get back a live FastAPI server with realistic seed data, interactive Swagger docs, and a full dashboard to explore it.
+
+## Status
+
+A standalone personal project exploring structured-output LangChain pipelines and spec-driven API generation. Not tied to any hackathon submission.
 
 ## Screenshots
 
-### Home — prompt & 3D forge engine
+### Home: prompt & 3D forge engine
 
 ![API-Forge home screen](docs/screenshots/home.png)
 
 Split hero layout with prompt input, quick presets, and an animated 3D wireframe forge on the right.
 
-### Overview — stats & actions
+### Overview: stats & actions
 
 ![API overview dashboard](docs/screenshots/overview.png)
 
@@ -34,14 +38,14 @@ Field-level breakdown for every entity inferred from your prompt.
 
 ![Live API playground](docs/screenshots/playground.png)
 
-Send real HTTP requests to your forged API and inspect live JSON responses — no Swagger tab required.
+Send real HTTP requests to your forged API and inspect live JSON responses, no Swagger tab required.
 
 ## Features
 
 | Feature | Description |
 |---|---|
 | **Prompt → API** | LangChain + Groq generates schema and seed data from plain English |
-| **Real REST endpoints** | Full CRUD per entity — list, get, create, update, delete |
+| **Real REST endpoints** | Full CRUD per entity: list, get, create, update, delete |
 | **Swagger docs** | Auto-generated OpenAPI/Swagger UI per API |
 | **Live playground** | Test endpoints inline with cURL copy |
 | **ER diagram** | Entity relationship visualization |
@@ -54,7 +58,7 @@ Send real HTTP requests to your forged API and inspect live JSON responses — n
 
 Frontend teams routinely wait on backend teams to design a schema, seed data, and deploy endpoints just to start building UI. Tools like Mockoon, Beeceptor, and MockingCloud generate AI-powered mocks, but most need an existing OpenAPI spec or traffic first.
 
-API-Forge starts from nothing but a sentence. The pipeline is split into three inspectable LangChain steps (schema, seed data, routes) rather than one opaque prompt-to-JSON call, and it produces real FastAPI-native Swagger docs — not a custom dashboard mimicking one.
+API-Forge starts from nothing but a sentence. The pipeline is split into three inspectable LangChain steps (schema, seed data, routes) rather than one opaque prompt-to-JSON call, and it produces real FastAPI-native Swagger docs, not a custom dashboard mimicking one.
 
 ## How it works
 
@@ -96,8 +100,12 @@ Each generated API is an independent mounted sub-application. Two APIs can run s
 
 ```bash
 python -m venv venv
-venv\Scripts\Activate.ps1        # Windows PowerShell
-# source venv/bin/activate       # macOS/Linux
+
+# Windows PowerShell
+venv\Scripts\Activate.ps1
+
+# macOS / Linux
+source venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env             # add your GROQ_API_KEY
@@ -132,7 +140,7 @@ Visit `http://127.0.0.1:8000/api/{api_id}/docs` for live Swagger UI.
 | A hotel booking system with rooms, guests, and reservations | room, guest, reservation |
 | A social feed with users, posts, and likes | user, post, like |
 
-Any plain-English backend description works — these are just starting points.
+Any plain-English backend description works, these are just starting points.
 
 ## API endpoints
 
@@ -147,10 +155,10 @@ Any plain-English backend description works — these are just starting points.
 
 ## Regenerate README screenshots
 
-Requires Playwright (not in `requirements.txt` — dev only):
+Dev-only dependency, kept separate from the main install:
 
 ```bash
-pip install playwright
+pip install -r requirements-dev.txt
 python -m playwright install chromium
 python scripts/capture_screenshots.py
 ```
@@ -159,7 +167,7 @@ Outputs to `docs/screenshots/`.
 
 ## Reliability
 
-Groq's structured-output parsing occasionally fails on longer completions. Every chain call is wrapped in automatic retry logic (`app/utils/retry.py`) — up to 3 attempts before surfacing a clean error.
+Groq's structured-output parsing occasionally fails on longer completions. Every chain call is wrapped in automatic retry logic (`app/utils/retry.py`), up to 3 attempts before surfacing a clean error.
 
 ## Project structure
 
@@ -193,7 +201,7 @@ data/
 
 ## Known limitations
 
-- Routes are standard CRUD per entity (deterministic, not LLM-designed) — a deliberate reliability choice.
+- Routes are standard CRUD per entity (deterministic, not LLM-designed), a deliberate reliability choice.
 - The forging progress animation is cosmetic UI; it does not reflect real-time backend pipeline stages.
 - The 3D background is decorative only.
-- SQLite is local single-file storage — not suited for multi-user production without further work.
+- SQLite is local single-file storage, not suited for multi-user production without further work.
