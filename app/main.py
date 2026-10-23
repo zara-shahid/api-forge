@@ -5,6 +5,8 @@ Run with:
     uvicorn app.main:app --reload
 """
 
+import utils.transport
+import utils.session
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
